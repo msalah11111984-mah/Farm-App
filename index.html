@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>الوطنية - إدارة الحقول</title>
+    <!-- Leaflet & Draw CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+        }
+        
+        /* حماية قاطعة لمنع السحب أو إعادة التحميل (Pull-To-Refresh Lock) */
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden !important;
+            touch-action: none !important;
+            overscroll-behavior: none !important;
+            overscroll-behavior-y: none !important;
+            -webkit-user-select: none;
+            user-select: none;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding-top: var(--sat);
+            padding-bottom: var(--sab);
+            padding-left: var(--sal);
+            padding-right: var(--sar);
+            background-color: #022c22;
+        }
+
+        #map { 
+            height: 100vh; 
+            width: 100vw; 
+            z-index: 1;
+            touch-action: pan-x pan-y !important;
+        }
+
+        .leaflet-draw-toolbar {
+            border: none !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3) !important;
+            border-radius: 16px !important;
+            overflow: hidden;
+        }
+
+        .custom-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        
+        .speed-badge {
+            background: rgba(6, 78, 59, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col bg-gray-950">
+
+    <!-- شريط القيادة والملاحة العلوي -->
+    <div class="absolute top-3 right-3 left-3 z-[1000] flex justify-between items-center pointer-events-none">
+        <button onclick="toggleSidebar()" class="pointer-events-auto bg-emerald-900/95 backdrop-blur-md text-white font-bold px-4 py-3 rounded-2xl shadow-2xl border border-emerald-600/40 flex items-center gap-2 custom-btn active:scale-95 transition-all text-xs">
+            <span>☰</span>
+            <span>الوطنية برو</span>
+        </button>
+
+        <div class="pointer-events-auto flex items-center gap-2">
+            <!-- زر إضافة النقطة الصريح (لن تفتح أي نافذة إلا عند ضغطه) -->
+            <button onclick="togglePointDropMode()" id="drop-mode-btn" class="bg-amber-600 text-white font-bold px-3 py-3 rounded-2xl shadow-2xl border border-amber-400/40 flex items-center gap-1 custom-btn active:scale-95 transition-all text-xs">
+                <span>📍</span>
+                <span id="drop-btn-text">إضافة نقطة</span>
+            </button>
+
+            <!-- عداد السرعة الميداني -->
+            <div class="speed-badge px-3 py-2.5 rounded-2xl text-white font-mono text-xs flex items-center gap-1 shadow-2xl">
+                <span>🚗</span>
+                <span id="speed-val" class="font-bold text-emerald-400">0</span>
+                <span class="text-[10px] text-emerald-200">كم/س</span>
+            </div>
+
+            <!-- زر GPS -->
+            <button onclick="locateUserGPS(true)" class="bg-blue-600 text-white font-bold px-4 py-3 rounded-2xl shadow-2xl border border-blue-400/40 flex items-center gap-2 custom-btn active:scale-95 transition-all text-xs">
+                <span>📍</span>
+                <span id="gps-status-text">موقعي</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- أزرار تكبير وتصغير الشاشة العائمة (مباشرة وقوية بدون أخطاء لمس) -->
+    <div class="absolute bottom-8 right-6 z-[1000] flex flex-col gap-3 pointer-events-auto">
+        <button onclick="zoomInMap()" class="bg-white text-emerald-900 font-extrabold w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center text-3xl active:scale-90 border-2 border-emerald-600">＋</button>
+        <button onclick="zoomOutMap()" class="bg-white text-emerald-900 font-extrabold w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center text-3xl active:scale-90 border-2 border-emerald-600">－</button>
+    </div>
+
+    <!-- القائمة الجانبية -->
+    <div id="sidebar" class="fixed top-0 right-0 bottom-0 w-80 md:w-96 bg-white z-[2000] shadow-2xl flex flex-col transition-transform duration-300 translate-x-full">
+        <div class="bg-emerald-950 text-white p-4 flex justify-between items-center shadow-lg">
+            <div>
+                <h2 class="font-bold text-base">🌾 منصة الوطنية الزراعية</h2>
+                <p class="text-[10px] text-emerald-400">إدارة الحقول والآبار الميدانية</p>
+            </div>
+            <button onclick="toggleSidebar()" class="text-white text-2xl font-bold px-2 hover:bg-emerald-800 rounded-lg">✕</button>
+        </div>
+
+        <div class="flex border-b bg-gray-100 text-xs font-bold">
+            <button onclick="switchTab('fields')" id="tab-fields" class="flex-1 py-3 border-b-2 border-emerald-600 text-emerald-800 bg-white">الحقول</button>
+            <button onclick="switchTab('points')" id="tab-points" class="flex-1 py-3 text-gray-500">الآبار والمعالم</button>
+            <button onclick="switchTab('pivot')" id="tab-pivot" class="flex-1 py-3 text-gray-500">الرشاش المحوري</button>
+            <button onclick="switchTab('calculators')" id="tab-calculators" class="flex-1 py-3 text-gray-500">الهيدروليك</button>
+        </div>
+
+        <div id="content-fields" class="p-4 flex-1 overflow-y-auto space-y-3">
+            <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-xs space-y-1">
+                <div class="font-bold text-emerald-900">سجل القطع الزراعية</div>
+                <div class="text-gray-500 text-[11px]">ارسم حقل أو استورد ملفات KML</div>
+            </div>
+
+            <div class="border-2 border-dashed border-emerald-300 p-3 rounded-xl text-center bg-emerald-50/50">
+                <label class="cursor-pointer text-xs text-emerald-800 font-bold block">
+                    📂 استيراد KML / KMZ
+                    <input type="file" id="kmlFile" accept=".kml,.kmz" class="hidden" onchange="importKML(event)">
+                </label>
+            </div>
+
+            <div id="fieldsList" class="space-y-2"></div>
+        </div>
+
+        <div id="content-points" class="p-4 flex-1 overflow-y-auto space-y-3 hidden">
+            <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-xs text-blue-900 font-bold">
+                💡 اضغط أولاً على زر "إضافة نقطة" في أعلى الشاشة، ثم انقر المكان المحدد بالخريطة لتوقيع البئر.
+            </div>
+            <div id="pointsList" class="space-y-2"></div>
+        </div>
+
+        <div id="content-pivot" class="p-4 flex-1 overflow-y-auto space-y-4 hidden text-xs">
+            <div class="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200 space-y-2">
+                <h4 class="font-bold text-emerald-900">🔄 حاسبة الرشاش المحوري</h4>
+                <input type="number" id="pivotRadius" placeholder="نصف القطر (متر)" class="w-full p-2.5 border rounded-xl bg-white">
+                <input type="number" id="pivotFlow" placeholder="تصريف البئر (m³/h)" class="w-full p-2.5 border rounded-xl bg-white">
+                <input type="number" id="pivotSpeed" placeholder="سرعة الدورة (ساعة/دورة)" class="w-full p-2.5 border rounded-xl bg-white">
+                <button onclick="calcPivot()" class="w-full bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow">احسب الري</button>
+                <div id="pivotResult" class="font-bold text-emerald-950 pt-1"></div>
+            </div>
+        </div>
+
+        <div id="content-calculators" class="p-4 flex-1 overflow-y-auto space-y-4 hidden text-xs">
+            <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 space-y-2">
+                <h4 class="font-bold text-emerald-800">💧 الاحتياج المائي ($ET_o$)</h4>
+                <input type="number" id="etValue" placeholder="التبخر اليومي (مم/يوم)" class="w-full p-2 border rounded-lg bg-white">
+                <input type="number" id="kcValue" placeholder="معامل المحصول (Kc)" value="1.05" class="w-full p-2 border rounded-lg bg-white">
+                <button onclick="calcWater()" class="w-full bg-emerald-600 text-white font-bold py-2 rounded-lg">احسب الاحتياج</button>
+                <div id="waterResult" class="font-bold text-emerald-950 pt-1"></div>
+            </div>
+
+            <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 space-y-2">
+                <h4 class="font-bold text-blue-800">⚙️ الرفع الهيدروليكي ($TDH$)</h4>
+                <input type="number" id="staticHead" placeholder="المنسوب الثابت (متر)" class="w-full p-2 border rounded-lg bg-white">
+                <input type="number" id="frictionLoss" placeholder="فاقد الاحتكاك (متر)" class="w-full p-2 border rounded-lg bg-white">
+                <button onclick="calcTDH()" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg">احسب ה-TDH</button>
+                <div id="tdhResult" class="font-bold text-blue-950 pt-1"></div>
+            </div>
+        </div>
+
+        <div class="p-3 border-t bg-gray-50 flex justify-between text-xs font-bold">
+            <button onclick="exportData()" class="text-blue-600">📤 تصدير البيانات</button>
+            <button onclick="importDataPrompt()" class="text-emerald-600">📥 استعادة البيانات</button>
+        </div>
+    </div>
+
+    <!-- الخريطة -->
+    <div id="map"></div>
+
+    <!-- نافذة الحقل -->
+    <div id="fieldModal" class="fixed inset-0 bg-black/60 z-[3000] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3">
+            <h3 class="font-bold text-base text-emerald-800">حفظ القطعة / الحقل</h3>
+            <input type="text" id="fieldName" placeholder="اسم الحقل (مثلاً: حقل زيتون 1)" class="w-full p-2.5 border rounded-xl text-xs">
+            
+            <select id="fieldCrop" class="w-full p-2.5 border rounded-xl text-xs font-bold">
+                <option value="قمح">قمح (Wheat)</option>
+                <option value="زيتون تقليدي">زيتون تقليدي</option>
+                <option value="زيتون مكثف">زيتون مكثف</option>
+                <option value="طماطم">طماطم (Tomatoes)</option>
+                <option value="برسيم">برسيم (Alfalfa)</option>
+                <option value="نخيل/فواكه">نخيل / فواكه</option>
+            </select>
+
+            <select id="fieldIrrigation" class="w-full p-2.5 border rounded-xl text-xs">
+                <option value="تنقيط">تنقيط (Drip)</option>
+                <option value="رشاش محوري">رشاش محوري (Pivot)</option>
+                <option value="رشاشات عادية">رشاشات عادية</option>
+            </select>
+            
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('fieldModal')" class="px-4 py-2 bg-gray-200 rounded-xl text-xs font-bold">إلغاء</button>
+                <button onclick="saveDrawnField()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة النقطة والمعلم -->
+    <div id="pointModal" class="fixed inset-0 bg-black/60 z-[3000] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3">
+            <h3 class="font-bold text-base text-blue-800">توقيع بئر أو معلم ميداني</h3>
+            <input type="text" id="pointName" placeholder="اسم المعلم (مثال: بئر رقم 1)" class="w-full p-2.5 border rounded-xl text-xs">
+            <select id="pointType" class="w-full p-2.5 border rounded-xl text-xs">
+                <option value="بئر ومضخة">بئر ومضخة</option>
+                <option value="محبس وصمام">محبس وصمام ري</option>
+                <option value="نقطة صيانة">عطل / صيانة ميدانية</option>
+            </select>
+            <textarea id="pointNotes" placeholder="ملاحظات..." class="w-full p-2.5 border rounded-xl text-xs"></textarea>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('pointModal')" class="px-4 py-2 bg-gray-200 rounded-xl text-xs font-bold">إلغاء</button>
+                <button onclick="savePointData()" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">حفظ المعلم</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- المكتبات البرمجية -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
+
+    <script>
+        // قفل أية استجابة لإعادة تحميل الصفحة بالسحب
+        document.body.addEventListener('touchmove', function(e) {
+            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        const map = L.map('map', { 
+            zoomControl: false, 
+            tap: false, // تعطيل الـ tap الافتراضي لمنع الأخطاء في هاتف سامسونج
+            touchZoom: true
+        }).setView([24.7136, 46.6753], 13);
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19, attribution: 'Esri'
+        }).addTo(map);
+
+        const streetsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+
+        L.control.layers({ "أقمار صناعية": satelliteLayer, "شوارع": streetsLayer }, null, { position: 'topleft' }).addTo(map);
+
+        let fieldsData = JSON.parse(localStorage.getItem('nat_fields') || '[]');
+        let pointsData = JSON.parse(localStorage.getItem('nat_points') || '[]');
+
+        let drawnItems = new L.FeatureGroup().addTo(map);
+        let trackPath = L.polyline([], { color: '#3b82f6', weight: 4, opacity: 0.8 }).addTo(map);
+
+        let temporaryLayer = null;
+        let pendingLatLng = null;
+        let userMarker = null;
+        let userCircle = null;
+        let isAddPointMode = false;
+
+        renderStoredData();
+
+        // التكبير والتصغير الصريح والواضح
+        function zoomInMap() { map.zoomIn(); }
+        function zoomOutMap() { map.zoomOut(); }
+
+        // وضع إضافة النقطة الصريح
+        function togglePointDropMode() {
+            isAddPointMode = !isAddPointMode;
+            const btn = document.getElementById('drop-mode-btn');
+            const txt = document.getElementById('drop-btn-text');
+            if (isAddPointMode) {
+                btn.classList.remove('bg-amber-600');
+                btn.classList.add('bg-red-600', 'animate-pulse');
+                txt.innerText = 'انقر بالخريطة الآن';
+            } else {
+                btn.classList.remove('bg-red-600', 'animate-pulse');
+                btn.classList.add('bg-amber-600');
+                txt.innerText = 'إضافة نقطة';
+            }
+        }
+
+        map.on('click', function(e) {
+            // لا تظهر النافذة إطلاقاً إلا إذا كان زر "إضافة نقطة" مفعلاً باللون الأحمر
+            if (isAddPointMode) {
+                pendingLatLng = e.latlng;
+                document.getElementById('pointModal').classList.remove('hidden');
+                togglePointDropMode();
+            }
+        });
+
+        function renderStoredData() {
+            drawnItems.clearLayers();
+            const fList = document.getElementById('fieldsList');
+            const pList = document.getElementById('pointsList');
+            fList.innerHTML = '';
+            pList.innerHTML = '';
+
+            fieldsData.forEach((f, idx) => {
+                let layer = L.geoJSON(f.geometry, {
+                    style: { color: '#10b981', weight: 3, fillColor: '#10b981', fillOpacity: 0.35 }
+                }).bindPopup(`
+                    <div style="direction:rtl; text-align:right;">
+                        <b style="color:#065f46; font-size:14px;">${f.name}</b><br>
+                        <b>المحصول:</b> ${f.crop}<br>
+                        <b>المساحة:</b> ${f.area} هكتار<br>
+                        <hr style="margin:6px 0;">
+                        <button onclick="navigateToCoord(${f.lat || 24.7136}, ${f.lng || 46.6753})" style="background:#2563eb; color:white; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; width:100%; cursor:pointer;">🧭 قيادة وتوجيه بالسيارة</button>
+                    </div>
+                `);
+                drawnItems.addLayer(layer);
+
+                fList.innerHTML += `
+                    <div class="p-2.5 bg-gray-50 border rounded-xl flex justify-between items-center text-xs">
+                        <div>
+                            <div class="font-bold text-emerald-900">${f.name} (${f.crop})</div>
+                            <div class="text-gray-500">المساحة: ${f.area} هكتار</div>
+                        </div>
+                        <div class="flex gap-2 font-bold">
+                            <button onclick="zoomToField(${idx})" class="text-blue-600">عرض</button>
+                            <button onclick="navigateToCoord(${f.lat || 24.7136}, ${f.lng || 46.6753})" class="text-emerald-600">قيادة</button>
+                            <button onclick="deleteField(${idx})" class="text-red-600">حذف</button>
+                        </div>
+                    </div>`;
+            });
+
+            pointsData.forEach((p, idx) => {
+                let marker = L.marker([p.lat, p.lng]).bindPopup(`
+                    <div style="direction:rtl; text-align:right;">
+                        <b style="color:#1e40af; font-size:14px;">${p.name}</b><br>
+                        <b>النوع:</b> ${p.type}<br>
+                        <b>ملاحظات:</b> ${p.notes || '-'}<br>
+                        <hr style="margin:6px 0;">
+                        <button onclick="navigateToCoord(${p.lat}, ${p.lng})" style="background:#2563eb; color:white; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; width:100%; cursor:pointer;">🧭 قيادة وتوجيه بالسيارة</button>
+                    </div>
+                `);
+                drawnItems.addLayer(marker);
+
+                pList.innerHTML += `
+                    <div class="p-2.5 bg-gray-50 border rounded-xl flex justify-between items-center text-xs">
+                        <div>
+                            <div class="font-bold text-blue-900">${p.name}</div>
+                            <div class="text-gray-500">${p.type}</div>
+                        </div>
+                        <div class="flex gap-2 font-bold">
+                            <button onclick="zoomToPoint(${p.lat}, ${p.lng})" class="text-blue-600">عرض</button>
+                            <button onclick="navigateToCoord(${p.lat}, ${p.lng})" class="text-emerald-600">قيادة</button>
+                            <button onclick="deletePoint(${idx})" class="text-red-600">حذف</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        const drawControl = new L.Control.Draw({
+            position: 'bottomleft',
+            edit: { featureGroup: drawnItems },
+            draw: {
+                polygon: true,
+                polyline: { shapeOptions: { color: '#f59e0b', weight: 4 } },
+                circle: true,
+                rectangle: true,
+                marker: false,
+                circlemarker: false
+            }
+        });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, function (e) {
+            temporaryLayer = e.layer;
+            if (e.layerType === 'polyline') {
+                let latlngs = temporaryLayer.getLatLngs();
+                let distanceMeters = 0;
+                for (let i = 0; i < latlngs.length - 1; i++) {
+                    distanceMeters += latlngs[i].distanceTo(latlngs[i + 1]);
+                }
+                alert(`📏 الطول الإجمالي للمسار: ${distanceMeters.toFixed(1)} متر (${(distanceMeters/1000).toFixed(2)} كم)`);
+                drawnItems.addLayer(temporaryLayer);
+            } else {
+                document.getElementById('fieldModal').classList.remove('hidden');
+            }
+        });
+
+        function saveDrawnField() {
+            if (!temporaryLayer) return;
+            const name = document.getElementById('fieldName').value || 'حقل جديد';
+            const crop = document.getElementById('fieldCrop').value;
+            const irrigation = document.getElementById('fieldIrrigation').value;
+
+            let latlngs = temporaryLayer.getLatLngs()[0];
+            let areaSqMeters = L.GeometryUtil ? L.GeometryUtil.geodesicArea(latlngs) : 10000;
+            let areaHectares = (areaSqMeters / 10000).toFixed(2);
+            let center = temporaryLayer.getBounds().getCenter();
+
+            fieldsData.push({ name, crop, irrigation, area: areaHectares, lat: center.lat, lng: center.lng, geometry: temporaryLayer.toGeoJSON() });
+            localStorage.setItem('nat_fields', JSON.stringify(fieldsData));
+
+            closeModal('fieldModal');
+            renderStoredData();
+            temporaryLayer = null;
+        }
+
+        function savePointData() {
+            if (!pendingLatLng) return;
+            const name = document.getElementById('pointName').value || 'معلم جديد';
+            const type = document.getElementById('pointType').value;
+            const notes = document.getElementById('pointNotes').value;
+
+            pointsData.push({ name, type, notes, lat: pendingLatLng.lat, lng: pendingLatLng.lng });
+            localStorage.setItem('nat_points', JSON.stringify(pointsData));
+
+            closeModal('pointModal');
+            renderStoredData();
+            pendingLatLng = null;
+        }
+
+        function locateUserGPS(centerMap = true) {
+            if (!navigator.geolocation) return;
+
+            navigator.geolocation.watchPosition((pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const acc = pos.coords.accuracy;
+                const speed = pos.coords.speed ? (pos.coords.speed * 3.6).toFixed(0) : 0;
+
+                document.getElementById('speed-val').innerText = speed;
+                document.getElementById('gps-status-text').innerText = `دقة: ${acc.toFixed(0)}m`;
+
+                trackPath.addLatLng([lat, lng]);
+
+                if (userMarker) {
+                    userMarker.setLatLng([lat, lng]);
+                    userCircle.setLatLng([lat, lng]).setRadius(acc);
+                } else {
+                    userMarker = L.marker([lat, lng]).addTo(map).bindPopup("📍 موقعك الحالي");
+                    userCircle = L.circle([lat, lng], { radius: acc, color: '#3b82f6', fillOpacity: 0.15 }).addTo(map);
+                }
+
+                if (centerMap) {
+                    map.setView([lat, lng], 17);
+                }
+            }, (err) => {
+                document.getElementById('gps-status-text').innerText = 'خطأ GPS';
+            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+        }
+
+        function navigateToCoord(lat, lng) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+        }
+
+        function calcPivot() {
+            const r = parseFloat(document.getElementById('pivotRadius').value) || 0;
+            const q = parseFloat(document.getElementById('pivotFlow').value) || 0;
+            const speed100 = parseFloat(document.getElementById('pivotSpeed').value) || 24;
+
+            const areaHectares = (Math.PI * r * r) / 10000;
+            const dailyWaterMM = ((q * speed100) / (areaHectares * 10)).toFixed(1);
+
+            document.getElementById('pivotResult').innerHTML = `
+                <b>المساحة المغطاة:</b> ${areaHectares.toFixed(1)} هكتار<br>
+                <b>التجميع المائي:</b> ${dailyWaterMM} مم/دورة
+            `;
+        }
+
+        function calcWater() {
+            const et = parseFloat(document.getElementById('etValue').value) || 0;
+            const kc = parseFloat(document.getElementById('kcValue').value) || 1;
+            const res = et * kc * 10;
+            document.getElementById('waterResult').innerText = `الاحتياج: ${res.toFixed(1)} m³/هكتار`;
+        }
+
+        function calcTDH() {
+            const s = parseFloat(document.getElementById('staticHead').value) || 0;
+            const f = parseFloat(document.getElementById('frictionLoss').value) || 0;
+            document.getElementById('tdhResult').innerText = `الرفع الكلي: ${(s + f + (s*0.1)).toFixed(1)} متر`;
+        }
+
+        function switchTab(tab) {
+            ['fields', 'points', 'pivot', 'calculators'].forEach(t => {
+                document.getElementById(`content-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('border-b-2', 'border-emerald-600', 'text-emerald-800', 'bg-white');
+                document.getElementById(`tab-${t}`).classList.add('text-gray-500');
+            });
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('border-b-2', 'border-emerald-600', 'text-emerald-800', 'bg-white');
+            document.getElementById(`tab-${tab}`).classList.remove('text-gray-500');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('translate-x-full');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function zoomToField(idx) {
+            let l = L.geoJSON(fieldsData[idx].geometry);
+            map.fitBounds(l.getBounds());
+            toggleSidebar();
+        }
+
+        function zoomToPoint(lat, lng) {
+            map.setView([lat, lng], 18);
+            toggleSidebar();
+        }
+
+        function deleteField(idx) {
+            if(confirm('حذف الحقل؟')) { fieldsData.splice(idx,1); localStorage.setItem('nat_fields', JSON.stringify(fieldsData)); renderStoredData(); }
+        }
+
+        function deletePoint(idx) {
+            if(confirm('حذف المعلم؟')) { pointsData.splice(idx,1); localStorage.setItem('nat_points', JSON.stringify(pointsData)); renderStoredData(); }
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify({ fields: fieldsData, points: pointsData })], { type: 'json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'national_farm.json';
+            a.click();
+        }
+
+        function importDataPrompt() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    const data = JSON.parse(ev.target.result);
+                    fieldsData = data.fields || [];
+                    pointsData = data.points || [];
+                    localStorage.setItem('nat_fields', JSON.stringify(fieldsData));
+                    localStorage.setItem('nat_points', JSON.stringify(pointsData));
+                    renderStoredData();
+                };
+                reader.readAsText(e.target.files[0]);
+            };
+            input.click();
+        }
+    </script>
+</body>
+</html>
