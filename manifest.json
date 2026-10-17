@@ -8,14 +8,16 @@
   "theme_color": "#022c22",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f33e.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%23022c22'/><text x='50%' y='55%' font-size='280' text-anchor='middle' dominant-baseline='middle'>🌾</text></svg>",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f33e.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%23022c22'/><text x='50%' y='55%' font-size='280' text-anchor='middle' dominant-baseline='middle'>🌾</text></svg>",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
