@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>الوطنية - إدارة الحقول</title>
+    
+    <!-- ربط الـ Manifest الداخلي لضمان قبول موقع PWABuilder فوراً -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#022c22">
+
     <!-- Leaflet & Draw CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
@@ -68,7 +73,7 @@
         </button>
 
         <div class="pointer-events-auto flex items-center gap-2">
-            <!-- زر إضافة النقطة الصريح (لن تفتح أي نافذة إلا عند ضغطه) -->
+            <!-- زر إضافة النقطة الصريح -->
             <button onclick="togglePointDropMode()" id="drop-mode-btn" class="bg-amber-600 text-white font-bold px-3 py-3 rounded-2xl shadow-2xl border border-amber-400/40 flex items-center gap-1 custom-btn active:scale-95 transition-all text-xs">
                 <span>📍</span>
                 <span id="drop-btn-text">إضافة نقطة</span>
@@ -89,7 +94,7 @@
         </div>
     </div>
 
-    <!-- أزرار تكبير وتصغير الشاشة العائمة (مباشرة وقوية بدون أخطاء لمس) -->
+    <!-- أزرار تكبير وتصغير الشاشة العائمة -->
     <div class="absolute bottom-8 right-6 z-[1000] flex flex-col gap-3 pointer-events-auto">
         <button onclick="zoomInMap()" class="bg-white text-emerald-900 font-extrabold w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center text-3xl active:scale-90 border-2 border-emerald-600">＋</button>
         <button onclick="zoomOutMap()" class="bg-white text-emerald-900 font-extrabold w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center text-3xl active:scale-90 border-2 border-emerald-600">－</button>
@@ -148,7 +153,7 @@
 
         <div id="content-calculators" class="p-4 flex-1 overflow-y-auto space-y-4 hidden text-xs">
             <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 space-y-2">
-                <h4 class="font-bold text-emerald-800">💧 الاحتياج المائي ($ET_o$)</h4>
+                <h4 class="font-bold text-emerald-800">💧 الاحتياج المائي (ETo)</h4>
                 <input type="number" id="etValue" placeholder="التبخر اليومي (مم/يوم)" class="w-full p-2 border rounded-lg bg-white">
                 <input type="number" id="kcValue" placeholder="معامل المحصول (Kc)" value="1.05" class="w-full p-2 border rounded-lg bg-white">
                 <button onclick="calcWater()" class="w-full bg-emerald-600 text-white font-bold py-2 rounded-lg">احسب الاحتياج</button>
@@ -156,10 +161,10 @@
             </div>
 
             <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 space-y-2">
-                <h4 class="font-bold text-blue-800">⚙️ الرفع الهيدروليكي ($TDH$)</h4>
+                <h4 class="font-bold text-blue-800">⚙️ الرفع الهيدروليكي (TDH)</h4>
                 <input type="number" id="staticHead" placeholder="المنسوب الثابت (متر)" class="w-full p-2 border rounded-lg bg-white">
                 <input type="number" id="frictionLoss" placeholder="فاقد الاحتكاك (متر)" class="w-full p-2 border rounded-lg bg-white">
-                <button onclick="calcTDH()" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg">احسب ה-TDH</button>
+                <button onclick="calcTDH()" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg">احسب الـ TDH</button>
                 <div id="tdhResult" class="font-bold text-blue-950 pt-1"></div>
             </div>
         </div>
@@ -234,7 +239,7 @@
 
         const map = L.map('map', { 
             zoomControl: false, 
-            tap: false, // تعطيل الـ tap الافتراضي لمنع الأخطاء في هاتف سامسونج
+            tap: false,
             touchZoom: true
         }).setView([24.7136, 46.6753], 13);
 
@@ -260,11 +265,9 @@
 
         renderStoredData();
 
-        // التكبير والتصغير الصريح والواضح
         function zoomInMap() { map.zoomIn(); }
         function zoomOutMap() { map.zoomOut(); }
 
-        // وضع إضافة النقطة الصريح
         function togglePointDropMode() {
             isAddPointMode = !isAddPointMode;
             const btn = document.getElementById('drop-mode-btn');
@@ -281,7 +284,6 @@
         }
 
         map.on('click', function(e) {
-            // لا تظهر النافذة إطلاقاً إلا إذا كان زر "إضافة نقطة" مفعلاً باللون الأحمر
             if (isAddPointMode) {
                 pendingLatLng = e.latlng;
                 document.getElementById('pointModal').classList.remove('hidden');
