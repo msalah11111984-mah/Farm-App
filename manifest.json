@@ -1,0 +1,13 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "National Farm",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "National Farm",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "id": "Com.national.farm",
+  "description": "Farm And Irrigation Management"
+}
