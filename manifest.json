@@ -1,20 +1,23 @@
 {
-  "name": "الوطنية لإدارة الحقول والآبار",
+  "name": "الوطنية - إدارة الحقول والآبار",
   "short_name": "الوطنية",
+  "description": "Farm And Irrigation Management",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#022c22",
   "theme_color": "#022c22",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/192/628/622848.png",
+      "src": "data:image/svg+xml,&amp;lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'&amp;gt;&amp;lt;rect width='512' height='512' fill='%23022c22'/&amp;gt;&amp;lt;text x='50%' y='55%' font-size='280' text-anchor='middle' dominant-baseline='middle'&amp;gt;🌾&amp;lt;/text&amp;gt;&amp;lt;/svg&amp;gt;",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/628/622848.png",
+      "src": "data:image/svg+xml,&amp;lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'&amp;gt;&amp;lt;rect width='512' height='512' fill='%23022c22'/&amp;gt;&amp;lt;text x='50%' y='55%' font-size='280' text-anchor='middle' dominant-baseline='middle'&amp;gt;🌾&amp;lt;/text&amp;gt;&amp;lt;/svg&amp;gt;",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
