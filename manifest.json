@@ -8,15 +8,15 @@
   "theme_color": "#022c22",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%23022c22'/><text x='50%' y='55%' font-size='280' text-anchor='middle' dominant-baseline='middle'>🌾</text></svg>",
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Farm-icon.png/192px-Farm-icon.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%23022c22'/><text x='50%' y='55%' font-size='280' text-anchor='middle' dominant-baseline='middle'>🌾</text></svg>",
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Farm-icon.png/512px-Farm-icon.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
